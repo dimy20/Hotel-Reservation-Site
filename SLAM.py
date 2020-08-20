@@ -1,10 +1,12 @@
 import time
 import cv2
 import numpy as np
+from skimage.measure import ransac 
+from skimage.transform import FundamentalMatrixTransform
 class FeatureExtractor(object):
     def __init__(self):
-        #ORB and brute force matcher init
-        self.orb = cv2.ORB_create(100)
+        # orb nad brute force matcher algorithim
+        self.orb = cv2.ORB_create()
         self.bf = cv2.BFMatcher(cv2.NORM_HAMMING)
         self.last = None
    
@@ -17,26 +19,51 @@ class FeatureExtractor(object):
         # get matching features
         
         res = []
+        ptsRight = []
+        ptsLeft = [] 
         matches = None
         if self.last is not None:
             matches = self.bf.knnMatch(des,self.last['des'],k=2)
             for m,n in matches:
                 if (m.distance < 0.75*n.distance):
-                    res.append((kps[m.queryIdx],self.last['kps'][m.trainIdx]))
+                    kp1 = kps[m.queryIdx]
+                    kp2 = self.last['kps'][m.trainIdx]
+                    ptsLeft.append(self.last['kps'][m.trainIdx].pt)
+                    ptsRight.append(kps[m.queryIdx].pt)
+                    res.append((kp1,kp2))
 
         self.last = {'kps': kps, 'des' : des}
-        #returns matching keypoints ->res, need to be drawn on the screen
+        #Filtering - removers shitty matches
+        
+        res = np.array(res) 
+        if (len(res)> 0):
+            ptsLeft = np.int32(ptsLeft)
+            ptsRight = np.int32(ptsRight)
+         
+            model,inliers = ransac((ptsLeft,ptsRight),
+            FundamentalMatrixTransform,
+            min_samples =8,
+            residual_threshold=1,
+            max_trials=100)
+        
+            res = res[inliers]
+        
+        #returns filtered matching keypoints 
         return kps,res 
 #process each frame  
 def process_frame(frame,w,h):
     res_frame= cv2.resize(frame,(w,h))  
     kps,matches= fe.extract(res_frame)
-    
-    #Draw line for match keypoints
+    #Draw circle for kps
+    for kp in kps:
+        u1,v1 = map(lambda x :(int(x)), kp.pt)
+        res_frame = cv2.circle(res_frame,(u1,v1),1,(0,255,0),2)
+
+    #Draw line for matching keypoints
     for m in matches:
         u2,v2 = map(lambda x : (int(x.pt[0]),int(x.pt[1])) ,m)
         res_frame = cv2.line(res_frame,u2,v2,(255,0,0),2)
-    res_frame = cv2.drawKeypoints(res_frame,kps,None,color=(0,255,0))
+    #res_frame = cv2.drawKeypoints(res_frame,kps,None,color=(0,255,0))
     return res_frame
 
 def video_Init():
