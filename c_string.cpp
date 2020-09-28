@@ -1,5 +1,6 @@
 #include <conio.h>
 #include <stdio.h>
+#include <fstream>
 
 void read(char *buff, int maxSize)
 {
@@ -36,16 +37,21 @@ int str2int(char *s)
     }
     return res;
 }
+int fib(int n)
+{
+    if (n == 0)
+        return 0;
+    int res[n + 1];
+    res[0] = 0;
+    res[1] = 1;
+    for (int i = 2; i <= n; i++)
+    {
+        res[i] = res[i - 1] + res[i - 2];
+    }
+    return res[n + 1];
+}
 int main(int argc, char **argv)
 {
-    char test[5];
-    read(test, 5);
-    int to_num = str2int(test);
-    for (int i = 0; i < to_num; i++)
-    {
-        print(test);
-        _putch('\n');
-    }
     while (!_kbhit())
         ;
     return 0;
